@@ -15,7 +15,7 @@ def snackxy(grid, w, h):
                 return True, x, y
     return False, 0, 0
 
-demo = True
+demo = True     # toggle to play as human or bot
 RW = 80         # root width
 RH = 50         # root height
 W0 = 8
@@ -26,7 +26,6 @@ FPS = 25
 CON = tcod.console_new(CW, CH)
 init = True
 restart = True
-punish = False
 chance = 10     # percent chance of a snack/bait
 tcod.console_init_root(RW, RH, 'snake - hit ESC to quit')
 tcod.sys_set_fps(FPS)
@@ -52,6 +51,7 @@ while not tcod.console_is_window_closed():
         growth = 0
         grid = tcod.map_new(CW, CH)
         tcod.map_clear(grid, False, True)
+        found = False
         for x in range(5):
             o = Obj(CW / 2 - x, CH / 2)
             snake.append(o)
@@ -65,6 +65,7 @@ while not tcod.console_is_window_closed():
                 snack.remove(s)
                 grow = True
                 score += len(snake)
+                found = False
                 #tcod.map_set_properties(grid, s.x, s.y, False, True)
             tcod.console_put_char(CON, s.x, s.y, chr(5))
         # render bait
@@ -153,16 +154,19 @@ while not tcod.console_is_window_closed():
             break
     if demo:
         # find a snack (snacks are transparent)
-        found, x, y = snackxy(grid, CW, CH)
+        if not found:
+            found, pathx, pathy = snackxy(grid, CW, CH)
         if found:
             path = tcod.path_new_using_map(grid, 0)
-            if tcod.path_compute(path, snake[0].x, snake[0].y, x, y):
-                x, y = tcod.path_get(path, 0)
-                speed = [x - snake[0].x, y - snake[0].y]
+            if tcod.path_compute(path, snake[0].x, snake[0].y, pathx, pathy):
+                #x, y = tcod.path_get(path, 0)
+                x, y = tcod.path_walk(path, True)
+                if x is not None:
+                    speed = [x - snake[0].x, y - snake[0].y]
             # no path
             else:
                 # you're fucked
-                pass
+                found = False
         else:
             # no snack on grid (yet?)
             x = snake[0].x + speed[0]
