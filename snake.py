@@ -1,6 +1,21 @@
 import libtcodpy as tcod
 import random
 
+
+class Obj:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
+def snackxy(grid, w, h):
+    for x in range(w):
+        for y in range(h):
+            if tcod.map_is_transparent(grid, x, y):
+                return True, x, y
+    return False, 0, 0
+
+demo = True
 RW = 80         # root width
 RH = 50         # root height
 W0 = 8
@@ -9,17 +24,10 @@ CW = RW - 2*W0  # console width
 CH = RH - 2*H0  # console height
 FPS = 25
 CON = tcod.console_new(CW, CH)
-
-
-class Obj:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
 init = True
 restart = True
 punish = False
-chance = 5      # percent chance of a snack/bait
+chance = 10     # percent chance of a snack/bait
 tcod.console_init_root(RW, RH, 'snake - hit ESC to quit')
 tcod.sys_set_fps(FPS)
 tcod.console_set_default_background(None, tcod.gold)
@@ -36,17 +44,18 @@ while not tcod.console_is_window_closed():
     if restart:
         punish = False
         restart = False
-        x0 = CW / 2
-        y0 = CH / 2
         speed = [1, 0]
         snake = []
         snack = []
         bait = []
         grow = False
         growth = 0
-        for i in range(5):
-            o = Obj(x0 - i, y0)
+        grid = tcod.map_new(CW, CH)
+        tcod.map_clear(grid, False, True)
+        for x in range(5):
+            o = Obj(CW / 2 - x, CH / 2)
             snake.append(o)
+            tcod.map_set_properties(grid, CW / 2 - x, CH / 2, False, False)
     if alive:
         # render snack
         tcod.console_set_default_foreground(CON, tcod.green)
@@ -56,6 +65,7 @@ while not tcod.console_is_window_closed():
                 snack.remove(s)
                 grow = True
                 score += len(snake)
+                #tcod.map_set_properties(grid, s.x, s.y, False, True)
             tcod.console_put_char(CON, s.x, s.y, chr(5))
         # render bait
         tcod.console_set_default_foreground(CON, tcod.gold)
@@ -83,16 +93,18 @@ while not tcod.console_is_window_closed():
             else:
                 restart = True
         # gen snake
-        x0 = snake[0].x + speed[0]
-        y0 = snake[0].y + speed[1]
-        o = Obj(x0, y0)
+        x = snake[0].x + speed[0]
+        y = snake[0].y + speed[1]
+        o = Obj(x, y)
         snake.insert(0, o)
+        tcod.map_set_properties(grid, x, y, False, False)
         if grow:
             growth += 1
             if growth == 5:
                 growth = 0
                 grow = False
         else:
+            tcod.map_set_properties(grid, snake[-1].x, snake[-1].y, False, True)
             snake.pop()
         # gen snack/bait
         if random.randint(0, 100) < chance:
@@ -101,15 +113,15 @@ while not tcod.console_is_window_closed():
             o = Obj(x, y)
             if random.randint(0, 100) < 50:
                 bait.append(o)
+                tcod.map_set_properties(grid, x, y, False, False)
             else:
                 snack.append(o)
-
+                tcod.map_set_properties(grid, x, y, True, True)
     else:
         msg = 'game over man!'
         tcod.console_print(CON, (CW - len(msg)) / 2, CH / 2, msg)
         msg = 'hit ESC to restart'
         tcod.console_print(CON, (CW - len(msg)) / 2, CH / 2 + 2, msg)
-
     # blit console
     tcod.console_blit(CON, 0, 0, 0, 0, None, W0, H0)
     tcod.console_clear(CON)
@@ -139,6 +151,45 @@ while not tcod.console_is_window_closed():
             restart = True
         else:
             break
+    if demo:
+        # find a snack (snacks are transparent)
+        found, x, y = snackxy(grid, CW, CH)
+        if found:
+            path = tcod.path_new_using_map(grid, 0)
+            if tcod.path_compute(path, snake[0].x, snake[0].y, x, y):
+                x, y = tcod.path_get(path, 0)
+                speed = [x - snake[0].x, y - snake[0].y]
+            # no path
+            else:
+                # you're fucked
+                pass
+        else:
+            # no snack on grid (yet?)
+            x = snake[0].x + speed[0]
+            y = snake[0].y + speed[1]
+            if not tcod.map_is_walkable(grid, x, y):
+                # try up
+                speed = [0, -1]
+                x = snake[0].x + speed[0]
+                y = snake[0].y + speed[1]
+                if not tcod.map_is_walkable(grid, x, y):
+                    # try down
+                    speed = [0, 1]
+                    x = snake[0].x + speed[0]
+                    y = snake[0].y + speed[1]
+                    if not tcod.map_is_walkable(grid, x, y):
+                        # try left
+                        speed = [-1, 0]
+                        x = snake[0].x + speed[0]
+                        y = snake[0].y + speed[1]
+                        if not tcod.map_is_walkable(grid, x, y):
+                            # try right
+                            speed = [1, 0]
+                            x = snake[0].x + speed[0]
+                            y = snake[0].y + speed[1]
+                            if not tcod.map_is_walkable(grid, x, y):
+                                #you're fucked
+                                pass
     tcod.console_flush()
     tcod.console_clear(None)
     # fps
