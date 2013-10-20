@@ -65,7 +65,7 @@ while not tcod.console_is_window_closed():
                 snack.remove(s)
                 grow = True
                 score += len(snake)
-                found = False
+                #found = False
                 #tcod.map_set_properties(grid, s.x, s.y, False, True)
             tcod.console_put_char(CON, s.x, s.y, chr(5))
         # render bait
@@ -160,14 +160,16 @@ while not tcod.console_is_window_closed():
             path = tcod.path_new_using_map(grid, 0)
             if tcod.path_compute(path, snake[0].x, snake[0].y, pathx, pathy):
                 #x, y = tcod.path_get(path, 0)
-                x, y = tcod.path_walk(path, True)
+                x, y = tcod.path_walk(path, False)
                 if x is not None:
                     speed = [x - snake[0].x, y - snake[0].y]
+                else:
+                    found = False
             # no path
             else:
                 # you're fucked
                 found = False
-        else:
+        if not found:
             # no snack on grid (yet?)
             x = snake[0].x + speed[0]
             y = snake[0].y + speed[1]
