@@ -9,9 +9,10 @@ class Obj:
 
 
 def snackxy(grid, w, h):
+    # snacks are not transparent but walkable
     for x in range(w):
         for y in range(h):
-            if tcod.map_is_transparent(grid, x, y):
+            if not tcod.map_is_transparent(grid, x, y) and tcod.map_is_walkable(grid, x, y):
                 return True, x, y
     return False, 0, 0
 
@@ -41,8 +42,8 @@ while not tcod.console_is_window_closed():
         alive = True
         score = 0
     if restart:
-        punish = False
         restart = False
+        punish = False
         speed = [1, 0]
         snake = []
         snack = []
@@ -50,7 +51,8 @@ while not tcod.console_is_window_closed():
         grow = False
         growth = 0
         grid = tcod.map_new(CW, CH)
-        tcod.map_clear(grid, False, True)
+        tcod.map_clear(grid, True, True)
+        path = tcod.path_new_using_map(grid, 0)
         found = False
         for x in range(5):
             o = Obj(CW / 2 - x, CH / 2)
@@ -65,6 +67,7 @@ while not tcod.console_is_window_closed():
                 snack.remove(s)
                 grow = True
                 score += len(snake)
+                #break
                 #found = False
                 #tcod.map_set_properties(grid, s.x, s.y, False, True)
             tcod.console_put_char(CON, s.x, s.y, chr(5))
@@ -82,6 +85,7 @@ while not tcod.console_is_window_closed():
             if i > 0:
                 if s.x == snake[0].x and s.y == snake[0].y:
                     punish = True
+                    break
             else:
                 if s.x == CW or s.x == -1 or s.y == CH or s.y == -1:
                     punish = True
@@ -105,19 +109,22 @@ while not tcod.console_is_window_closed():
                 growth = 0
                 grow = False
         else:
-            tcod.map_set_properties(grid, snake[-1].x, snake[-1].y, False, True)
+            tcod.map_set_properties(grid, snake[-1].x, snake[-1].y, True, True)
             snake.pop()
         # gen snack/bait
         if random.randint(0, 100) < chance:
-            x = random.randint(0, CW)
-            y = random.randint(0, CH)
+            while True:
+                x = random.randint(0, CW)
+                y = random.randint(0, CH)
+                if tcod.map_is_transparent(grid, x, y):
+                    break
             o = Obj(x, y)
             if random.randint(0, 100) < 50:
                 bait.append(o)
                 tcod.map_set_properties(grid, x, y, False, False)
             else:
                 snack.append(o)
-                tcod.map_set_properties(grid, x, y, True, True)
+                tcod.map_set_properties(grid, x, y, False, True)
     else:
         msg = 'game over man!'
         tcod.console_print(CON, (CW - len(msg)) / 2, CH / 2, msg)
@@ -153,11 +160,11 @@ while not tcod.console_is_window_closed():
         else:
             break
     if demo:
-        # find a snack (snacks are transparent)
+        # find a snack
         if not found:
             found, pathx, pathy = snackxy(grid, CW, CH)
         if found:
-            path = tcod.path_new_using_map(grid, 0)
+            #path = tcod.path_new_using_map(grid, 0)
             if tcod.path_compute(path, snake[0].x, snake[0].y, pathx, pathy):
                 #x, y = tcod.path_get(path, 0)
                 x, y = tcod.path_walk(path, False)
